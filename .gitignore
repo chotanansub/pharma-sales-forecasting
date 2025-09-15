@@ -1,2 +1,6 @@
 src/__pycache__/data_processor.cpython-39.pyc
 *.pyc
+/predictions/sales_08_2014/ARIMA
+/predictions/sales_08_2014/CatBoost
+/predictions/sales_08_2014/Prophet
+instruction.md
