@@ -350,46 +350,6 @@ DPI = 300
 7. **Prediction Generation**: Create forecasts using full historical data
 8. **Output Creation**: Generate CSV files, visualizations, and detailed reports
 
-## 🚨 Troubleshooting
-
-### Common Issues
-
-**File-related errors**:
-```bash
-Error: No files found matching sales_YYYY_MM.csv pattern
-```
-- ✅ Verify files are named correctly: `sales_2014_08.csv`
-- ✅ Check data folder path
-- ✅ Ensure files have `.csv` extension
-
-**Data quality issues**:
-```bash
-Error: Insufficient data for model
-```
-- ✅ Need minimum 30 data points per drug
-- ✅ Check for missing or invalid date formats
-- ✅ Verify numeric values in drug columns
-
-**Intermittent demand specific**:
-```bash
-Warning: All predictions are zero
-```
-- ✅ System automatically handles this - check intermittent ratio in logs
-- ✅ Verify `INTERMITTENT_ZERO_THRESHOLD` setting
-- ✅ Review sample weighting configuration
-
-### Performance Optimization
-
-**For large datasets**:
-- Process drugs in batches using `--drug_filter`
-- Reduce `CATBOOST_ITERATIONS` for faster training
-- Use `--train_ratio 0.8` for less evaluation overhead
-
-**For highly sparse data**:
-- System automatically optimizes for intermittent patterns
-- Check intermittent-specific metrics in output
-- Consider longer historical periods for better pattern detection
-
 ## 📊 Performance Expectations
 
 ### Typical Results by Demand Pattern
