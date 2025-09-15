@@ -31,6 +31,11 @@ class Forecaster:
             learning_rate=config.CATBOOST_LEARNING_RATE
         )
         
+    def load_data(self, sales_folder_path: str = None) -> None:
+        """Load data from specified folder."""
+        if sales_folder_path:
+            self.data_processor = DataProcessor(sales_folder_path)
+        
     def load_and_prepare_data(self) -> Tuple[pd.DataFrame, List[str]]:
         """Load and prepare all data."""
         try:
@@ -263,9 +268,9 @@ class Forecaster:
     
     def save_outputs(self, drug_name: str, predictions: Dict, evaluation_results: Dict, 
                     drug_data: pd.DataFrame, latest_month: str) -> None:
-        """Save all outputs to files."""
+        """Save all outputs to files following the instruction format."""
         try:
-            # Create output directory structure
+            # Create output directory structure as per instructions
             base_path = os.path.join(config.OUTPUT_BASE_PATH, f'sales_{latest_month}')
             os.makedirs(base_path, exist_ok=True)
             
@@ -284,6 +289,7 @@ class Forecaster:
                         'confidence_upper': pred_data['upper_ci']
                     })
                     
+                    # Follow instruction naming: drugname_modelname_MM_YYYY.csv
                     csv_filename = f"{drug_name}_{model_name.lower()}_{latest_month}.csv"
                     csv_path = os.path.join(model_path, csv_filename)
                     pred_df.to_csv(csv_path, index=False)
@@ -308,6 +314,20 @@ class Forecaster:
                     f.write(f"Forecast Period: {self.forecast_days} days\n")
                     f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
                     
+                    # Add intermittent demand analysis for CatBoost
+                    if model_name == 'CatBoost' and model_name in evaluation_results:
+                        model_info = evaluation_results[model_name].get('model_info', {})
+                        if 'intermittent_ratio' in model_info:
+                            f.write("Demand Pattern Analysis:\n")
+                            f.write(f"- Intermittent ratio: {model_info['intermittent_ratio']:.1%} zeros\n")
+                            if model_info['intermittent_ratio'] > config.HIGHLY_INTERMITTENT_THRESHOLD:
+                                f.write("- Classification: Highly intermittent demand\n")
+                            elif model_info['intermittent_ratio'] > config.INTERMITTENT_RATIO_THRESHOLD:
+                                f.write("- Classification: Intermittent demand\n")
+                            else:
+                                f.write("- Classification: Regular demand\n")
+                            f.write("\n")
+                    
                     if model_name in evaluation_results and evaluation_results[model_name]['metrics']:
                         metrics = evaluation_results[model_name]['metrics']
                         f.write("Evaluation Metrics:\n")
@@ -315,6 +335,8 @@ class Forecaster:
                             if not np.isnan(value) and not np.isinf(value):
                                 if metric == 'MAPE':
                                     f.write(f"- {metric}: {value:.2f}%\n")
+                                elif 'accuracy' in metric.lower():
+                                    f.write(f"- {metric}: {value:.1%}\n")
                                 else:
                                     f.write(f"- {metric}: {value:.2f}\n")
                             else:
@@ -330,6 +352,11 @@ class Forecaster:
                 
         except Exception as e:
             self.logger.error(f"Error saving outputs: {str(e)}")
+    
+    def get_results(self) -> Dict[str, Any]:
+        """Get stored results from the last analysis."""
+        # This could be implemented to store and return results
+        return getattr(self, '_last_results', {})
     
     def run_complete_analysis(self, drug_filter: List[str] = None) -> Dict[str, Any]:
         """Run complete analysis for all drugs or filtered drugs."""
@@ -390,6 +417,9 @@ class Forecaster:
                 except Exception as e:
                     self.logger.error(f"Error processing {drug_name}: {str(e)}")
                     continue
+            
+            # Store results for get_results() method
+            self._last_results = results
             
             self.logger.info(f"Analysis complete. Successfully processed {successful_drugs}/{len(drug_names)} drugs.")
             return results
