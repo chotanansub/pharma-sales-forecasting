@@ -43,7 +43,12 @@ class Forecaster:
             # Get drug names
             drug_names = self.data_processor.get_drug_names(cleaned_data)
             
-            self.logger.info(f"Data prepared successfully. Found {len(drug_names)} drugs")
+            # Log data summary
+            summary = self.data_processor.get_data_summary(cleaned_data)
+            self.logger.info(f"Data loaded successfully:")
+            self.logger.info(f"- Records: {summary['total_records']}")
+            self.logger.info(f"- Date range: {summary['date_range']['start']} to {summary['date_range']['end']}")
+            self.logger.info(f"- Drugs: {summary['total_drugs']}")
             
             return cleaned_data, drug_names
             
@@ -176,7 +181,7 @@ class Forecaster:
                            evaluation_results: Dict, drug_name: str, model_name: str) -> plt.Figure:
         """Create visualization for predictions."""
         try:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=config.FIGURE_SIZE)
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
             
             # Plot 1: Historical data and predictions
             ax1.plot(drug_data['date'], drug_data['sales'], label='Historical Sales', color='blue', linewidth=2)
@@ -200,19 +205,50 @@ class Forecaster:
                 metric_names = list(metrics.keys())
                 metric_values = list(metrics.values())
                 
-                bars = ax2.bar(metric_names, metric_values, color=['skyblue', 'lightgreen', 'orange', 'pink'])
-                ax2.set_title(f'{model_name} Model Performance Metrics', fontsize=12, fontweight='bold')
-                ax2.set_ylabel('Value')
+                # Filter out infinite or NaN values
+                valid_metrics = []
+                valid_names = []
+                for name, value in zip(metric_names, metric_values):
+                    if not (np.isnan(value) or np.isinf(value)):
+                        valid_metrics.append(value)
+                        valid_names.append(name)
                 
-                # Add value labels on bars
-                for bar, value in zip(bars, metric_values):
-                    if not np.isnan(value) and not np.isinf(value):
-                        ax2.text(bar.get_x() + bar.get_width()/2., bar.get_height() + max(metric_values)*0.01,
+                if valid_metrics:
+                    bars = ax2.bar(valid_names, valid_metrics, color=['skyblue', 'lightgreen', 'orange', 'pink'])
+                    ax2.set_title(f'{model_name} Model Performance Metrics', fontsize=12, fontweight='bold')
+                    ax2.set_ylabel('Value')
+                    
+                    # Add value labels on bars
+                    for bar, value in zip(bars, valid_metrics):
+                        ax2.text(bar.get_x() + bar.get_width()/2., bar.get_height() + max(valid_metrics)*0.01,
                                f'{value:.2f}', ha='center', va='bottom')
+                else:
+                    ax2.text(0.5, 0.5, 'No valid evaluation metrics available', 
+                            ha='center', va='center', transform=ax2.transAxes, fontsize=12)
             else:
                 ax2.text(0.5, 0.5, 'No evaluation metrics available', 
                         ha='center', va='center', transform=ax2.transAxes, fontsize=12)
-                ax2.set_title(f'{model_name} Model Performance Metrics', fontsize=12, fontweight='bold')
+            
+            ax2.set_title(f'{model_name} Model Performance Metrics', fontsize=12, fontweight='bold')
+            
+            # Plot 3: Sales distribution
+            ax3.hist(drug_data['sales'], bins=30, alpha=0.7, color='skyblue', edgecolor='black')
+            ax3.set_title(f'{drug_name} Sales Distribution', fontsize=12, fontweight='bold')
+            ax3.set_xlabel('Sales')
+            ax3.set_ylabel('Frequency')
+            ax3.grid(True, alpha=0.3)
+            
+            # Plot 4: Monthly sales trend
+            drug_data_monthly = drug_data.copy()
+            drug_data_monthly['month'] = drug_data_monthly['date'].dt.to_period('M')
+            monthly_sales = drug_data_monthly.groupby('month')['sales'].mean()
+            
+            ax4.plot(monthly_sales.index.astype(str), monthly_sales.values, marker='o', linewidth=2)
+            ax4.set_title(f'{drug_name} Monthly Average Sales', fontsize=12, fontweight='bold')
+            ax4.set_xlabel('Month')
+            ax4.set_ylabel('Average Sales')
+            ax4.grid(True, alpha=0.3)
+            ax4.tick_params(axis='x', rotation=45)
             
             plt.tight_layout()
             return fig
@@ -248,21 +284,21 @@ class Forecaster:
                         'confidence_upper': pred_data['upper_ci']
                     })
                     
-                    csv_filename = f"{model_name.lower()}_{latest_month}.csv"
+                    csv_filename = f"{drug_name}_{model_name.lower()}_{latest_month}.csv"
                     csv_path = os.path.join(model_path, csv_filename)
                     pred_df.to_csv(csv_path, index=False)
                     self.logger.info(f"Saved predictions to {csv_path}")
                 
                 # Save visualization
                 fig = self.create_visualization(drug_data, predictions, evaluation_results, drug_name, model_name)
-                png_filename = f"{model_name.lower()}_{latest_month}.png"
+                png_filename = f"{drug_name}_{model_name.lower()}_{latest_month}.png"
                 png_path = os.path.join(model_path, png_filename)
                 fig.savefig(png_path, dpi=config.DPI, bbox_inches='tight')
                 plt.close(fig)
                 self.logger.info(f"Saved visualization to {png_path}")
                 
                 # Save evaluation metrics
-                txt_filename = f"{model_name.lower()}_{latest_month}.txt"
+                txt_filename = f"{drug_name}_{model_name.lower()}_{latest_month}.txt"
                 txt_path = os.path.join(model_path, txt_filename)
                 
                 with open(txt_path, 'w') as f:
@@ -303,16 +339,27 @@ class Forecaster:
             
             # Filter drugs if specified
             if drug_filter:
-                drug_names = [drug for drug in drug_names if drug in drug_filter]
+                available_drugs = set(drug_names)
+                filtered_drugs = [drug for drug in drug_filter if drug in available_drugs]
+                missing_drugs = set(drug_filter) - available_drugs
+                
+                if missing_drugs:
+                    self.logger.warning(f"Drugs not found in dataset: {missing_drugs}")
+                
+                if not filtered_drugs:
+                    raise ValueError(f"None of the specified drugs found in dataset. Available: {drug_names}")
+                    
+                drug_names = filtered_drugs
                 self.logger.info(f"Filtered to {len(drug_names)} drugs: {drug_names}")
             
             # Get latest month for output folder naming
             latest_month = self.data_processor.get_latest_month()
             
             results = {}
+            successful_drugs = 0
             
-            for drug_name in drug_names:
-                self.logger.info(f"Processing {drug_name}...")
+            for i, drug_name in enumerate(drug_names, 1):
+                self.logger.info(f"Processing {drug_name} ({i}/{len(drug_names)})...")
                 
                 try:
                     # Prepare drug-specific data
@@ -337,13 +384,14 @@ class Forecaster:
                         'data_points': len(drug_data)
                     }
                     
+                    successful_drugs += 1
                     self.logger.info(f"Completed analysis for {drug_name}")
                     
                 except Exception as e:
                     self.logger.error(f"Error processing {drug_name}: {str(e)}")
                     continue
             
-            self.logger.info(f"Analysis complete. Processed {len(results)} drugs successfully.")
+            self.logger.info(f"Analysis complete. Successfully processed {successful_drugs}/{len(drug_names)} drugs.")
             return results
             
         except Exception as e:
