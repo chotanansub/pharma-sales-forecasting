@@ -1,0 +1,21 @@
+Model: ARIMA
+Drug: R06
+Training Period: 2014-01-02 to 2014-08-31
+Forecast Period: 180 days
+Generated: 2025-09-15 21:06:25
+
+Evaluation Metrics:
+- MAE: 1.60
+- RMSE: 1.88
+- MAPE: 122.51%
+- R2: -0.19
+
+Model Parameters:
+- model_type: ARIMA
+- order: (1, 0, 1)
+- aic: 732.0351932540718
+- bic: 744.5547881137642
+- hqic: 737.1158805765363
+- seasonal_periods: 7
+- params: 4
+- loglikelihood: -362.0175966270359

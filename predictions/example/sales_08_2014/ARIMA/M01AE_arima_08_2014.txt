@@ -1,0 +1,21 @@
+Model: ARIMA
+Drug: M01AE
+Training Period: 2014-01-02 to 2014-08-31
+Forecast Period: 180 days
+Generated: 2025-09-15 21:05:44
+
+Evaluation Metrics:
+- MAE: 1.80
+- RMSE: 2.04
+- MAPE: 127.11%
+- R2: -0.01
+
+Model Parameters:
+- model_type: ARIMA
+- order: (2, 0, 2)
+- aic: 711.2184219769831
+- bic: 729.9978142665216
+- hqic: 718.8394529606798
+- seasonal_periods: 7
+- params: 6
+- loglikelihood: -349.60921098849155

@@ -1,0 +1,21 @@
+Model: Prophet
+Drug: M01AE
+Training Period: 2014-01-02 to 2014-08-31
+Forecast Period: 180 days
+Generated: 2025-09-15 21:05:45
+
+Evaluation Metrics:
+- MAE: 1.59
+- RMSE: 1.92
+- MAPE: 96.82%
+- R2: 0.10
+
+Model Parameters:
+- model_type: Prophet
+- seasonality_mode: multiplicative
+- interval_width: 0.95
+- changepoint_prior_scale: 0.05
+- seasonality_prior_scale: 10.0
+- n_changepoints: 25
+- seasonalities: {'monthly': {'period': 30.5, 'fourier_order': 5, 'prior_scale': 10.0}, 'weekly': {'period': 7, 'fourier_order': 3, 'prior_scale': 10.0}, 'daily': {'period': 1, 'fourier_order': 4, 'prior_scale': 10.0}}
+- uncertainty_samples: 1000

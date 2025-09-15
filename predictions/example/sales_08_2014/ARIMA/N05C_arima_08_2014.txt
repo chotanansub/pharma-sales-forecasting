@@ -1,0 +1,21 @@
+Model: ARIMA
+Drug: N05C
+Training Period: 2014-01-02 to 2014-08-31
+Forecast Period: 180 days
+Generated: 2025-09-15 21:06:12
+
+Evaluation Metrics:
+- MAE: 0.91
+- RMSE: 1.15
+- MAPE: 40.01%
+- R2: -0.01
+
+Model Parameters:
+- model_type: ARIMA
+- order: (3, 0, 0)
+- aic: 505.46501134753527
+- bic: 521.1145049221507
+- hqic: 511.8158705006158
+- seasonal_periods: 7
+- params: 5
+- loglikelihood: -247.73250567376763
