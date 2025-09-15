@@ -15,7 +15,8 @@ class DataProcessor:
         """Combine all monthly sales files into a single dataset."""
         try:
             all_files = []
-            file_pattern = r'sales_(\d{2})_(\d{4})\.csv'
+            # Fixed pattern to match instruction format: sales_YYYY_MM.csv
+            file_pattern = r'sales_(\d{4})_(\d{2})\.csv'
             
             # Get all CSV files in the sales folder
             if not os.path.exists(self.sales_folder_path):
@@ -31,13 +32,13 @@ class DataProcessor:
             for file in files:
                 match = re.match(file_pattern, file)
                 if match:
-                    month, year = match.groups()
+                    year, month = match.groups()
                     dated_files.append((int(year), int(month), file))
                 else:
-                    self.logger.warning(f"File {file} doesn't match expected pattern sales_MM_YYYY.csv")
+                    self.logger.warning(f"File {file} doesn't match expected pattern sales_YYYY_MM.csv")
             
             if not dated_files:
-                raise ValueError("No files found matching the expected naming pattern sales_MM_YYYY.csv")
+                raise ValueError("No files found matching the expected naming pattern sales_YYYY_MM.csv")
             
             dated_files.sort()
             
@@ -93,9 +94,18 @@ class DataProcessor:
             drug_columns = [col for col in combined_data.columns 
                            if col not in ['date', 'source_file', 'Year', 'Month', 'Hour', 'Weekday Name']]
             
-            # Fill missing values with forward fill then backward fill
+            # Check for negative values and invalid data
             for col in drug_columns:
+                # Convert to numeric, replacing errors with NaN
                 combined_data[col] = pd.to_numeric(combined_data[col], errors='coerce')
+                
+                # Check for negative values
+                negative_count = (combined_data[col] < 0).sum()
+                if negative_count > 0:
+                    self.logger.warning(f"Found {negative_count} negative values in {col}, setting to 0")
+                    combined_data[col] = combined_data[col].clip(lower=0)
+                
+                # Fill missing values with forward fill then backward fill
                 combined_data[col] = combined_data[col].fillna(method='ffill').fillna(method='bfill')
                 # If still NaN, fill with 0
                 combined_data[col] = combined_data[col].fillna(0)
@@ -147,7 +157,7 @@ class DataProcessor:
         """Get the latest month from the sales files."""
         try:
             files = [f for f in os.listdir(self.sales_folder_path) if f.endswith('.csv')]
-            # Updated pattern to match sales_YYYY_MM.csv format
+            # Updated pattern to match sales_YYYY_MM.csv format per instructions
             file_pattern = r'sales_(\d{4})_(\d{2})\.csv'
             
             dates = []
