@@ -7,6 +7,7 @@ import argparse
 import logging
 import sys
 import os
+import numpy as np
 from typing import List, Optional
 
 # Add src directory to path
@@ -159,7 +160,6 @@ def main() -> None:
         # Model performance summary
         model_success_rates = {'ARIMA': 0, 'Prophet': 0, 'CatBoost': 0}
         model_avg_metrics = {'ARIMA': {}, 'Prophet': {}, 'CatBoost': {}}
-        intermittent_performance = {}
         
         for drug_name, drug_results in results.items():
             logger.info(f"\nDrug: {drug_name}")
@@ -194,12 +194,6 @@ def main() -> None:
                                   f"RMSE: {metrics.get('RMSE', 'N/A'):.2f}, "
                                   f"Zero Acc: {metrics.get('zero_accuracy', 'N/A'):.1%}, "
                                   f"Demand Occ Acc: {metrics.get('demand_occurrence_accuracy', 'N/A'):.1%}")
-                        
-                        # Collect intermittent performance
-                        if 'intermittent_ratio' in catboost_info:
-                            if catboost_info['intermittent_ratio'] not in intermittent_performance:
-                                intermittent_performance[catboost_info['intermittent_ratio']] = []
-                            intermittent_performance[catboost_info['intermittent_ratio']].append(metrics)
                     else:
                         logger.info(f"  {model_name} - MAE: {metrics.get('MAE', 'N/A'):.2f}, "
                                   f"RMSE: {metrics.get('RMSE', 'N/A'):.2f}, "
@@ -215,29 +209,6 @@ def main() -> None:
             logger.info(f"Intermittent demand drugs: {intermittent_drugs}")
             logger.info(f"Highly intermittent demand drugs: {highly_intermittent_drugs}")
             logger.info(f"Total intermittent ratio: {(intermittent_drugs + highly_intermittent_drugs)/total_drugs:.1%}")
-        
-        # Overall model performance
-        
-        for drug_name, drug_results in results.items():
-            logger.info(f"\nDrug: {drug_name}")
-            logger.info(f"Data points: {drug_results['data_points']}")
-            
-            for model_name, model_results in drug_results['evaluation_results'].items():
-                if model_results['metrics']:
-                    model_success_rates[model_name] += 1
-                    metrics = model_results['metrics']
-                    
-                    # Collect metrics for averaging
-                    for metric, value in metrics.items():
-                        if not (np.isnan(value) or np.isinf(value)):
-                            if metric not in model_avg_metrics[model_name]:
-                                model_avg_metrics[model_name][metric] = []
-                            model_avg_metrics[model_name][metric].append(value)
-                    
-                    logger.info(f"  {model_name} - MAE: {metrics.get('MAE', 'N/A'):.2f}, "
-                              f"RMSE: {metrics.get('RMSE', 'N/A'):.2f}, "
-                              f"MAPE: {metrics.get('MAPE', 'N/A'):.2f}%, "
-                              f"R²: {metrics.get('R2', 'N/A'):.3f}")
         
         # Overall model performance
         logger.info(f"\n" + "="*40)
