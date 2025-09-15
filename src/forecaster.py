@@ -73,6 +73,7 @@ class Forecaster:
             
             # ARIMA Model
             try:
+                self.logger.info(f"Evaluating ARIMA for {drug_name}...")
                 arima_metrics = self.arima_model.evaluate(train_data['sales'], eval_data['sales'])
                 arima_info = self.arima_model.get_model_info()
                 results['ARIMA'] = {
@@ -80,13 +81,14 @@ class Forecaster:
                     'model_info': arima_info,
                     'model': self.arima_model
                 }
-                self.logger.info(f"ARIMA evaluation complete for {drug_name}")
+                self.logger.info(f"ARIMA evaluation complete for {drug_name} - MAE: {arima_metrics.get('MAE', 'N/A'):.2f}")
             except Exception as e:
                 self.logger.error(f"ARIMA evaluation failed for {drug_name}: {str(e)}")
                 results['ARIMA'] = {'metrics': {}, 'model_info': {}, 'model': None}
             
             # Prophet Model
             try:
+                self.logger.info(f"Evaluating Prophet for {drug_name}...")
                 prophet_metrics = self.prophet_model.evaluate(train_data, eval_data)
                 prophet_info = self.prophet_model.get_model_info()
                 results['Prophet'] = {
@@ -94,13 +96,24 @@ class Forecaster:
                     'model_info': prophet_info,
                     'model': self.prophet_model
                 }
-                self.logger.info(f"Prophet evaluation complete for {drug_name}")
+                self.logger.info(f"Prophet evaluation complete for {drug_name} - MAE: {prophet_metrics.get('MAE', 'N/A'):.2f}")
             except Exception as e:
                 self.logger.error(f"Prophet evaluation failed for {drug_name}: {str(e)}")
                 results['Prophet'] = {'metrics': {}, 'model_info': {}, 'model': None}
             
-            # CatBoost Model
+            # CatBoost Model - Enhanced error handling and logging
             try:
+                self.logger.info(f"Evaluating CatBoost for {drug_name}...")
+                
+                # Log data info for debugging
+                self.logger.info(f"Train data shape: {train_data.shape}, Eval data shape: {eval_data.shape}")
+                self.logger.info(f"Train data columns: {list(train_data.columns)}")
+                self.logger.info(f"Sales stats - Train: min={train_data['sales'].min():.2f}, max={train_data['sales'].max():.2f}, mean={train_data['sales'].mean():.2f}")
+                
+                # Check for zero sales ratio
+                zero_ratio = (train_data['sales'] <= 0.01).sum() / len(train_data)
+                self.logger.info(f"Zero sales ratio for {drug_name}: {zero_ratio:.1%}")
+                
                 catboost_metrics = self.catboost_model.evaluate(train_data, eval_data)
                 catboost_info = self.catboost_model.get_model_info()
                 results['CatBoost'] = {
@@ -108,9 +121,22 @@ class Forecaster:
                     'model_info': catboost_info,
                     'model': self.catboost_model
                 }
-                self.logger.info(f"CatBoost evaluation complete for {drug_name}")
+                
+                # Enhanced logging for CatBoost results
+                mae = catboost_metrics.get('MAE', 'N/A')
+                zero_acc = catboost_metrics.get('zero_accuracy', 'N/A')
+                demand_acc = catboost_metrics.get('demand_occurrence_accuracy', 'N/A')
+                
+                mae_str = f"{mae:.2f}" if isinstance(mae, (int, float)) and not np.isnan(mae) else "N/A"
+                zero_acc_str = f"{zero_acc:.1%}" if isinstance(zero_acc, (int, float)) and not np.isnan(zero_acc) else "N/A"
+                demand_acc_str = f"{demand_acc:.1%}" if isinstance(demand_acc, (int, float)) and not np.isnan(demand_acc) else "N/A"
+                
+                self.logger.info(f"CatBoost evaluation complete for {drug_name} - MAE: {mae_str}, Zero Acc: {zero_acc_str}, Demand Acc: {demand_acc_str}")
+                
             except Exception as e:
                 self.logger.error(f"CatBoost evaluation failed for {drug_name}: {str(e)}")
+                import traceback
+                self.logger.error(f"CatBoost error traceback: {traceback.format_exc()}")
                 results['CatBoost'] = {'metrics': {}, 'model_info': {}, 'model': None}
             
             return results
@@ -126,6 +152,7 @@ class Forecaster:
             
             # ARIMA Predictions
             try:
+                self.logger.info(f"Generating ARIMA predictions for {drug_name}...")
                 self.arima_model.fit(drug_data['sales'])
                 arima_pred, arima_lower, arima_upper = self.arima_model.predict(self.forecast_days)
                 
@@ -138,13 +165,14 @@ class Forecaster:
                     'lower_ci': arima_lower.values,
                     'upper_ci': arima_upper.values
                 }
-                self.logger.info(f"ARIMA predictions generated for {drug_name}")
+                self.logger.info(f"ARIMA predictions generated for {drug_name} - {len(arima_pred)} days")
             except Exception as e:
                 self.logger.error(f"ARIMA prediction failed for {drug_name}: {str(e)}")
                 predictions['ARIMA'] = None
             
             # Prophet Predictions
             try:
+                self.logger.info(f"Generating Prophet predictions for {drug_name}...")
                 self.prophet_model.fit(drug_data)
                 start_date = drug_data['date'].iloc[-1] + pd.Timedelta(days=1)
                 prophet_pred, prophet_lower, prophet_upper = self.prophet_model.predict(start_date, self.forecast_days)
@@ -155,15 +183,30 @@ class Forecaster:
                     'lower_ci': prophet_lower.values,
                     'upper_ci': prophet_upper.values
                 }
-                self.logger.info(f"Prophet predictions generated for {drug_name}")
+                self.logger.info(f"Prophet predictions generated for {drug_name} - {len(prophet_pred)} days")
             except Exception as e:
                 self.logger.error(f"Prophet prediction failed for {drug_name}: {str(e)}")
                 predictions['Prophet'] = None
             
-            # CatBoost Predictions
+            # CatBoost Predictions - Enhanced error handling
             try:
+                self.logger.info(f"Generating CatBoost predictions for {drug_name}...")
+                
+                # Log input data info
+                self.logger.info(f"Input data shape: {drug_data.shape}")
+                self.logger.info(f"Date range: {drug_data['date'].min()} to {drug_data['date'].max()}")
+                self.logger.info(f"Sales range: {drug_data['sales'].min():.2f} to {drug_data['sales'].max():.2f}")
+                
+                # Fit the model first
                 self.catboost_model.fit(drug_data)
+                self.logger.info(f"CatBoost model fitted successfully for {drug_name}")
+                
+                # Generate predictions
                 catboost_pred, catboost_lower, catboost_upper = self.catboost_model.predict(drug_data, self.forecast_days)
+                
+                # Validate predictions
+                if len(catboost_pred) == 0:
+                    raise ValueError("CatBoost returned empty predictions")
                 
                 predictions['CatBoost'] = {
                     'dates': catboost_pred.index,
@@ -171,10 +214,24 @@ class Forecaster:
                     'lower_ci': catboost_lower.values,
                     'upper_ci': catboost_upper.values
                 }
-                self.logger.info(f"CatBoost predictions generated for {drug_name}")
+                
+                # Log prediction summary
+                pred_mean = np.mean(catboost_pred.values)
+                pred_std = np.std(catboost_pred.values)
+                zero_count = (catboost_pred.values <= 0.01).sum()
+                
+                self.logger.info(f"CatBoost predictions generated for {drug_name} - {len(catboost_pred)} days")
+                self.logger.info(f"Prediction stats - Mean: {pred_mean:.2f}, Std: {pred_std:.2f}, Zeros: {zero_count}/{len(catboost_pred)}")
+                
             except Exception as e:
                 self.logger.error(f"CatBoost prediction failed for {drug_name}: {str(e)}")
+                import traceback
+                self.logger.error(f"CatBoost prediction error traceback: {traceback.format_exc()}")
                 predictions['CatBoost'] = None
+            
+            # Log overall prediction results
+            successful_models = [model for model, pred in predictions.items() if pred is not None]
+            self.logger.info(f"Successful predictions for {drug_name}: {successful_models}")
             
             return predictions
             
@@ -191,12 +248,15 @@ class Forecaster:
             # Plot 1: Historical data and predictions
             ax1.plot(drug_data['date'], drug_data['sales'], label='Historical Sales', color='blue', linewidth=2)
             
-            if predictions[model_name] is not None:
+            if predictions.get(model_name) is not None:
                 pred_data = predictions[model_name]
                 ax1.plot(pred_data['dates'], pred_data['predictions'], 
                         label=f'{model_name} Forecast', color='red', linewidth=2)
                 ax1.fill_between(pred_data['dates'], pred_data['lower_ci'], pred_data['upper_ci'],
                                alpha=0.3, color='red', label='Confidence Interval')
+            else:
+                ax1.text(0.5, 0.5, f'No predictions available for {model_name}', 
+                        ha='center', va='center', transform=ax1.transAxes, fontsize=12)
             
             ax1.set_title(f'{drug_name} - {model_name} Sales Forecast', fontsize=14, fontweight='bold')
             ax1.set_xlabel('Date')
@@ -219,14 +279,23 @@ class Forecaster:
                         valid_names.append(name)
                 
                 if valid_metrics:
-                    bars = ax2.bar(valid_names, valid_metrics, color=['skyblue', 'lightgreen', 'orange', 'pink'])
+                    bars = ax2.bar(valid_names, valid_metrics, color=['skyblue', 'lightgreen', 'orange', 'pink', 'lightcoral', 'gold'])
                     ax2.set_title(f'{model_name} Model Performance Metrics', fontsize=12, fontweight='bold')
                     ax2.set_ylabel('Value')
                     
                     # Add value labels on bars
-                    for bar, value in zip(bars, valid_metrics):
+                    for bar, value, name in zip(bars, valid_metrics, valid_names):
+                        if 'accuracy' in name.lower():
+                            label = f'{value:.1%}'
+                        elif name == 'MAPE':
+                            label = f'{value:.1f}%'
+                        else:
+                            label = f'{value:.2f}'
                         ax2.text(bar.get_x() + bar.get_width()/2., bar.get_height() + max(valid_metrics)*0.01,
-                               f'{value:.2f}', ha='center', va='bottom')
+                               label, ha='center', va='bottom', fontsize=9)
+                    
+                    # Rotate x-axis labels if needed
+                    ax2.tick_params(axis='x', rotation=45)
                 else:
                     ax2.text(0.5, 0.5, 'No valid evaluation metrics available', 
                             ha='center', va='center', transform=ax2.transAxes, fontsize=12)
@@ -238,23 +307,39 @@ class Forecaster:
             
             # Plot 3: Sales distribution
             ax3.hist(drug_data['sales'], bins=30, alpha=0.7, color='skyblue', edgecolor='black')
+            ax3.axvline(drug_data['sales'].mean(), color='red', linestyle='--', label=f'Mean: {drug_data["sales"].mean():.2f}')
+            ax3.axvline(drug_data['sales'].median(), color='green', linestyle='--', label=f'Median: {drug_data["sales"].median():.2f}')
             ax3.set_title(f'{drug_name} Sales Distribution', fontsize=12, fontweight='bold')
             ax3.set_xlabel('Sales')
             ax3.set_ylabel('Frequency')
+            ax3.legend()
             ax3.grid(True, alpha=0.3)
             
             # Plot 4: Monthly sales trend
-            drug_data_monthly = drug_data.copy()
-            drug_data_monthly['month'] = drug_data_monthly['date'].dt.to_period('M')
-            monthly_sales = drug_data_monthly.groupby('month')['sales'].mean()
+            try:
+                drug_data_monthly = drug_data.copy()
+                drug_data_monthly['month'] = drug_data_monthly['date'].dt.to_period('M')
+                monthly_sales = drug_data_monthly.groupby('month')['sales'].mean()
+                
+                ax4.plot(monthly_sales.index.astype(str), monthly_sales.values, marker='o', linewidth=2, markersize=4)
+                ax4.set_title(f'{drug_name} Monthly Average Sales', fontsize=12, fontweight='bold')
+                ax4.set_xlabel('Month')
+                ax4.set_ylabel('Average Sales')
+                ax4.grid(True, alpha=0.3)
+                ax4.tick_params(axis='x', rotation=45)
+                
+                # Add trend line
+                x_numeric = range(len(monthly_sales))
+                z = np.polyfit(x_numeric, monthly_sales.values, 1)
+                p = np.poly1d(z)
+                ax4.plot(monthly_sales.index.astype(str), p(x_numeric), "--", alpha=0.8, color='red', label='Trend')
+                ax4.legend()
+                
+            except Exception as e:
+                ax4.text(0.5, 0.5, f'Error creating monthly trend:\n{str(e)}', 
+                        ha='center', va='center', transform=ax4.transAxes, fontsize=10)
             
-            ax4.plot(monthly_sales.index.astype(str), monthly_sales.values, marker='o', linewidth=2)
-            ax4.set_title(f'{drug_name} Monthly Average Sales', fontsize=12, fontweight='bold')
-            ax4.set_xlabel('Month')
-            ax4.set_ylabel('Average Sales')
-            ax4.grid(True, alpha=0.3)
-            ax4.tick_params(axis='x', rotation=45)
-            
+            plt.suptitle(f'{drug_name} - {model_name} Analysis Dashboard', fontsize=16, fontweight='bold')
             plt.tight_layout()
             return fig
             
@@ -263,7 +348,8 @@ class Forecaster:
             # Return a simple figure with error message
             fig, ax = plt.subplots(figsize=config.FIGURE_SIZE)
             ax.text(0.5, 0.5, f'Error creating visualization:\n{str(e)}', 
-                   ha='center', va='center', transform=ax.transAxes)
+                   ha='center', va='center', transform=ax.transAxes, fontsize=12)
+            ax.set_title(f'{drug_name} - {model_name} (Error)')
             return fig
     
     def save_outputs(self, drug_name: str, predictions: Dict, evaluation_results: Dict, 
@@ -294,6 +380,8 @@ class Forecaster:
                     csv_path = os.path.join(model_path, csv_filename)
                     pred_df.to_csv(csv_path, index=False)
                     self.logger.info(f"Saved predictions to {csv_path}")
+                else:
+                    self.logger.warning(f"No predictions available for {drug_name} - {model_name}")
                 
                 # Save visualization
                 fig = self.create_visualization(drug_data, predictions, evaluation_results, drug_name, model_name)
@@ -313,6 +401,13 @@ class Forecaster:
                     f.write(f"Training Period: {drug_data['date'].iloc[0].strftime('%Y-%m-%d')} to {drug_data['date'].iloc[-1].strftime('%Y-%m-%d')}\n")
                     f.write(f"Forecast Period: {self.forecast_days} days\n")
                     f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                    
+                    # Add prediction status
+                    if predictions.get(model_name) is not None:
+                        f.write(f"Prediction Status: SUCCESS\n")
+                        f.write(f"Predictions Generated: {len(predictions[model_name]['predictions'])}\n\n")
+                    else:
+                        f.write(f"Prediction Status: FAILED\n\n")
                     
                     # Add intermittent demand analysis for CatBoost
                     if model_name == 'CatBoost' and model_name in evaluation_results:
@@ -341,12 +436,17 @@ class Forecaster:
                                     f.write(f"- {metric}: {value:.2f}\n")
                             else:
                                 f.write(f"- {metric}: N/A\n")
+                    else:
+                        f.write("Evaluation Metrics: Not available\n")
                     
                     if model_name in evaluation_results and evaluation_results[model_name]['model_info']:
                         model_info = evaluation_results[model_name]['model_info']
                         f.write(f"\nModel Parameters:\n")
                         for param, value in model_info.items():
-                            f.write(f"- {param}: {value}\n")
+                            if isinstance(value, dict):
+                                f.write(f"- {param}: {len(value)} items\n")
+                            else:
+                                f.write(f"- {param}: {value}\n")
                 
                 self.logger.info(f"Saved evaluation metrics to {txt_path}")
                 
@@ -355,7 +455,6 @@ class Forecaster:
     
     def get_results(self) -> Dict[str, Any]:
         """Get stored results from the last analysis."""
-        # This could be implemented to store and return results
         return getattr(self, '_last_results', {})
     
     def run_complete_analysis(self, drug_filter: List[str] = None) -> Dict[str, Any]:
@@ -396,6 +495,11 @@ class Forecaster:
                         self.logger.warning(f"Insufficient data for {drug_name} (only {len(drug_data)} records)")
                         continue
                     
+                    # Log drug data summary
+                    zero_ratio = (drug_data['sales'] <= 0.01).sum() / len(drug_data)
+                    self.logger.info(f"{drug_name} - Data points: {len(drug_data)}, Zero ratio: {zero_ratio:.1%}, "
+                                   f"Mean sales: {drug_data['sales'].mean():.2f}")
+                    
                     # Train and evaluate models
                     evaluation_results = self.train_evaluate_models(drug_data, drug_name)
                     
@@ -408,7 +512,8 @@ class Forecaster:
                     results[drug_name] = {
                         'evaluation_results': evaluation_results,
                         'predictions': predictions,
-                        'data_points': len(drug_data)
+                        'data_points': len(drug_data),
+                        'zero_ratio': zero_ratio
                     }
                     
                     successful_drugs += 1
@@ -416,6 +521,8 @@ class Forecaster:
                     
                 except Exception as e:
                     self.logger.error(f"Error processing {drug_name}: {str(e)}")
+                    import traceback
+                    self.logger.error(f"Error traceback: {traceback.format_exc()}")
                     continue
             
             # Store results for get_results() method
