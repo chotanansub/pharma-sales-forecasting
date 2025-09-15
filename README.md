@@ -5,13 +5,10 @@ A comprehensive pharmacy sales prediction system that processes historical daily
 ## 🚀 Key Features
 
 - **Multi-Model Forecasting**: ARIMA, Prophet, and CatBoost models for robust predictions
-- **Intermittent Demand Specialization**: Advanced handling of sparse/zero-inflated pharmacy sales data
+- **Intermittent Demand Specialization**: Handling of sparse/zero-inflated pharmacy sales data
 - **Automated Data Processing**: Seamlessly combines monthly CSV files with data validation
 - **Comprehensive Evaluation**: Multiple metrics including intermittent-specific performance indicators
-- **Rich Visualizations**: Time series plots, confidence intervals, and performance dashboards
 - **Flexible Configuration**: Customizable forecast periods, model parameters, and output formats
-- **Command Line Interface**: Easy-to-use CLI with extensive options
-- **Detailed Reporting**: Individual drug analysis with model diagnostics and insights
 
 ## 📁 Project Structure
 
