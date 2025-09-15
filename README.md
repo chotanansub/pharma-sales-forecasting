@@ -139,6 +139,9 @@ from src.forecaster import Forecaster
 # Initialize forecaster
 forecaster = Forecaster(forecast_days=180)
 
+# Load data from custom path
+forecaster.load_data('data/sales/')
+
 # Run complete analysis
 results = forecaster.run_complete_analysis(drug_filter=['M01AB', 'N02BA'])
 
@@ -146,6 +149,9 @@ results = forecaster.run_complete_analysis(drug_filter=['M01AB', 'N02BA'])
 drug_results = results['M01AB']
 evaluation_metrics = drug_results['evaluation_results']
 predictions = drug_results['predictions']
+
+# Get stored results from last analysis
+last_results = forecaster.get_results()
 ```
 
 ## 📈 Forecasting Models
@@ -256,7 +262,7 @@ date,drug_name,predicted_sales,confidence_lower,confidence_upper
 
 #### 3. Evaluation Reports (TXT)
 ```txt
-Model: CatBoost_Intermittent
+Model: CatBoost
 Drug: M01AB
 Training Period: 2014-01-01 to 2014-08-31
 Forecast Period: 180 days
@@ -265,8 +271,6 @@ Generated: 2024-09-15 10:30:45
 Demand Pattern Analysis:
 - Intermittent ratio: 45.7% zeros
 - Classification: Intermittent demand
-- Avg demand interval: 2.3 days
-- Demand size CV: 1.42
 
 Evaluation Metrics:
 - MAE: 2.34
@@ -395,7 +399,6 @@ Warning: All predictions are zero
 | Regular | N/A | N/A | 2-8 | ARIMA/Prophet |
 | Intermittent | 80-90% | 75-85% | 1-5 | CatBoost |
 | Highly Sparse | 85-95% | 80-90% | 0.5-3 | CatBoost |
-
 
 ## 📄 License
 This project is licensed under the MIT License - see the LICENSE file for details.
