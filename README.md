@@ -359,6 +359,3 @@ DPI = 300
 | Regular | N/A | N/A | 2-8 | ARIMA/Prophet |
 | Intermittent | 80-90% | 75-85% | 1-5 | CatBoost |
 | Highly Sparse | 85-95% | 80-90% | 0.5-3 | CatBoost |
-
-## 📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
