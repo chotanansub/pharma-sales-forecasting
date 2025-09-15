@@ -1,0 +1,21 @@
+Model: ARIMA
+Drug: N02BE
+Training Period: 2014-01-02 to 2014-09-30
+Forecast Period: 180 days
+Generated: 2025-09-15 21:24:02
+
+Evaluation Metrics:
+- MAE: 8.93
+- RMSE: 12.76
+- MAPE: 49.67%
+- R2: -0.10
+
+Model Parameters:
+- model_type: ARIMA
+- order: (2, 1, 3)
+- aic: 1454.4589515962984
+- bic: 1473.9094336866563
+- hqic: 1462.338809707356
+- seasonal_periods: 7
+- params: 6
+- loglikelihood: -721.2294757981492

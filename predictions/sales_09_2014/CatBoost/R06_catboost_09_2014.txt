@@ -1,0 +1,15 @@
+Model: CatBoost
+Drug: R06
+Training Period: 2014-01-02 to 2014-09-30
+Forecast Period: 180 days
+Generated: 2025-09-15 21:24:31
+
+Evaluation Metrics:
+- MAE: N/A
+- RMSE: N/A
+- MAPE: N/A
+- R2: 0.00
+
+Model Parameters:
+- model_type: CatBoost
+- status: not_fitted

@@ -1,0 +1,21 @@
+Model: Prophet
+Drug: R03
+Training Period: 2014-01-02 to 2014-09-30
+Forecast Period: 180 days
+Generated: 2025-09-15 21:24:23
+
+Evaluation Metrics:
+- MAE: 2.73
+- RMSE: 4.74
+- MAPE: 64.48%
+- R2: -0.07
+
+Model Parameters:
+- model_type: Prophet
+- seasonality_mode: multiplicative
+- interval_width: 0.95
+- changepoint_prior_scale: 0.05
+- seasonality_prior_scale: 10.0
+- n_changepoints: 25
+- seasonalities: {'monthly': {'period': 30.5, 'fourier_order': 5, 'prior_scale': 10.0}, 'weekly': {'period': 7, 'fourier_order': 3, 'prior_scale': 10.0}, 'daily': {'period': 1, 'fourier_order': 4, 'prior_scale': 10.0}}
+- uncertainty_samples: 1000

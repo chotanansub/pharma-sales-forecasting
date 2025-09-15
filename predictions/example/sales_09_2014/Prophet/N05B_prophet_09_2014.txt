@@ -1,0 +1,21 @@
+Model: Prophet
+Drug: N05B
+Training Period: 2014-01-02 to 2014-09-30
+Forecast Period: 180 days
+Generated: 2025-09-15 21:24:10
+
+Evaluation Metrics:
+- MAE: 4.88
+- RMSE: 6.19
+- MAPE: 38.79%
+- R2: -0.33
+
+Model Parameters:
+- model_type: Prophet
+- seasonality_mode: multiplicative
+- interval_width: 0.95
+- changepoint_prior_scale: 0.05
+- seasonality_prior_scale: 10.0
+- n_changepoints: 25
+- seasonalities: {'monthly': {'period': 30.5, 'fourier_order': 5, 'prior_scale': 10.0}, 'weekly': {'period': 7, 'fourier_order': 3, 'prior_scale': 10.0}, 'daily': {'period': 1, 'fourier_order': 4, 'prior_scale': 10.0}}
+- uncertainty_samples: 1000
