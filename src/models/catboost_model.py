@@ -22,7 +22,9 @@ class CatBoostModel:
         """Analyze demand pattern to detect intermittency."""
         try:
             total_periods = len(data)
-            zero_periods = (data <= self.zero_threshold).sum()
+            
+            # Fix the boolean array comparison issue
+            zero_periods = int((data <= self.zero_threshold).sum())
             self.intermittent_ratio = zero_periods / total_periods if total_periods > 0 else 0
             
             # Calculate demand intervals (time between non-zero demands)
@@ -31,25 +33,25 @@ class CatBoostModel:
             if len(non_zero_indices) > 1:
                 intervals = np.diff(non_zero_indices)
             
-            avg_interval = np.mean(intervals) if intervals else 0
-            cv_interval = np.std(intervals) / np.mean(intervals) if len(intervals) > 0 and np.mean(intervals) > 0 else 0
+            avg_interval = float(np.mean(intervals)) if len(intervals) > 0 else 0.0
+            cv_interval = float(np.std(intervals) / np.mean(intervals)) if len(intervals) > 0 and np.mean(intervals) > 0 else 0.0
             
             # Calculate demand size variability
             non_zero_demands = data[data > self.zero_threshold]
-            cv_demand = non_zero_demands.std() / non_zero_demands.mean() if len(non_zero_demands) > 0 and non_zero_demands.mean() > 0 else 0
+            cv_demand = float(non_zero_demands.std() / non_zero_demands.mean()) if len(non_zero_demands) > 0 and non_zero_demands.mean() > 0 else 0.0
             
             pattern_info = {
-                'total_periods': total_periods,
-                'zero_periods': zero_periods,
-                'intermittent_ratio': self.intermittent_ratio,
+                'total_periods': int(total_periods),
+                'zero_periods': int(zero_periods),
+                'intermittent_ratio': float(self.intermittent_ratio),
                 'avg_demand_interval': avg_interval,
                 'cv_interval': cv_interval,
                 'cv_demand_size': cv_demand,
-                'is_intermittent': self.intermittent_ratio > 0.25,  # More than 25% zeros
-                'is_highly_intermittent': self.intermittent_ratio > 0.6,  # More than 60% zeros
-                'mean_non_zero_demand': non_zero_demands.mean() if len(non_zero_demands) > 0 else 0,
-                'max_demand': data.max(),
-                'demand_spikes': (data > data.quantile(0.95)).sum() if len(data) > 0 else 0
+                'is_intermittent': bool(self.intermittent_ratio > 0.25),  # More than 25% zeros
+                'is_highly_intermittent': bool(self.intermittent_ratio > 0.6),  # More than 60% zeros
+                'mean_non_zero_demand': float(non_zero_demands.mean()) if len(non_zero_demands) > 0 else 0.0,
+                'max_demand': float(data.max()) if len(data) > 0 else 0.0,
+                'demand_spikes': int((data > data.quantile(0.95)).sum()) if len(data) > 0 else 0
             }
             
             self.logger.info(f"Demand pattern analysis: {self.intermittent_ratio:.1%} intermittent, "
@@ -59,7 +61,20 @@ class CatBoostModel:
             
         except Exception as e:
             self.logger.error(f"Error analyzing demand pattern: {str(e)}")
-            return {'is_intermittent': False, 'intermittent_ratio': 0}
+            # Return default pattern info with all required keys
+            return {
+                'total_periods': len(data) if data is not None else 0,
+                'zero_periods': 0,
+                'intermittent_ratio': 0.0,
+                'avg_demand_interval': 0.0,
+                'cv_interval': 0.0,
+                'cv_demand_size': 0.0,
+                'is_intermittent': False,
+                'is_highly_intermittent': False,
+                'mean_non_zero_demand': 0.0,
+                'max_demand': 0.0,
+                'demand_spikes': 0
+            }
     
     def create_intermittent_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Create specialized features for intermittent demand forecasting."""
@@ -93,9 +108,9 @@ class CatBoostModel:
             for i in range(len(features_df)):
                 if sales.iloc[i] > self.zero_threshold:
                     last_demand_idx = i
-                    features_df.loc[i, 'time_since_demand'] = 0
+                    features_df.iloc[i, features_df.columns.get_loc('time_since_demand')] = 0
                 else:
-                    features_df.loc[i, 'time_since_demand'] = i - last_demand_idx if last_demand_idx >= 0 else i + 1
+                    features_df.iloc[i, features_df.columns.get_loc('time_since_demand')] = i - last_demand_idx if last_demand_idx >= 0 else i + 1
             
             # Time until next demand (look-ahead feature for training)
             features_df['time_until_demand'] = 0
@@ -103,9 +118,9 @@ class CatBoostModel:
             for i in range(len(features_df) - 1, -1, -1):
                 if sales.iloc[i] > self.zero_threshold:
                     next_demand_idx = i
-                    features_df.loc[i, 'time_until_demand'] = 0
+                    features_df.iloc[i, features_df.columns.get_loc('time_until_demand')] = 0
                 else:
-                    features_df.loc[i, 'time_until_demand'] = next_demand_idx - i if next_demand_idx < len(features_df) else len(features_df) - i
+                    features_df.iloc[i, features_df.columns.get_loc('time_until_demand')] = next_demand_idx - i if next_demand_idx < len(features_df) else len(features_df) - i
             
             # Demand intensity features
             lag_periods = [1, 2, 3, 7, 14, 30]
@@ -146,7 +161,7 @@ class CatBoostModel:
             # Double exponential smoothing for demand size
             alpha_level = 0.3
             alpha_trend = 0.1
-            level = non_zero_sales = sales.where(sales > self.zero_threshold, 0)
+            level = 0
             trend = 0
             smoothed_level = []
             smoothed_trend = []
@@ -213,7 +228,7 @@ class CatBoostModel:
                     zero_count += 1
                 else:
                     zero_count = 0
-                features_df.loc[i, 'consecutive_zeros'] = zero_count
+                features_df.iloc[i, features_df.columns.get_loc('consecutive_zeros')] = zero_count
             
             # Feature scaling for intermittent data
             # Log transform for highly skewed demand
