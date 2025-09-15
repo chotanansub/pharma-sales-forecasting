@@ -132,6 +132,7 @@ def main() -> None:
         
         # Initialize forecaster
         forecaster = Forecaster(forecast_days=args.forecast_days)
+        forecaster.load_data(args.data_path)  # Use the updated load_data method
         
         # Run complete analysis
         logger.info("Starting analysis...")
@@ -177,7 +178,7 @@ def main() -> None:
                     logger.info(f"  Intermittent demand: {intermittent_ratio:.1%} zeros")
             
             for model_name, model_results in drug_results['evaluation_results'].items():
-                if model_results['metrics']:
+                if model_results.get('metrics'):
                     model_success_rates[model_name] += 1
                     metrics = model_results['metrics']
                     
@@ -195,10 +196,20 @@ def main() -> None:
                                   f"Zero Acc: {metrics.get('zero_accuracy', 'N/A'):.1%}, "
                                   f"Demand Occ Acc: {metrics.get('demand_occurrence_accuracy', 'N/A'):.1%}")
                     else:
-                        logger.info(f"  {model_name} - MAE: {metrics.get('MAE', 'N/A'):.2f}, "
-                                  f"RMSE: {metrics.get('RMSE', 'N/A'):.2f}, "
-                                  f"MAPE: {metrics.get('MAPE', 'N/A'):.2f}%, "
-                                  f"R²: {metrics.get('R2', 'N/A'):.3f}")
+                        mae = metrics.get('MAE', 'N/A')
+                        rmse = metrics.get('RMSE', 'N/A')
+                        mape = metrics.get('MAPE', 'N/A')
+                        r2 = metrics.get('R2', 'N/A')
+                        
+                        mae_str = f"{mae:.2f}" if isinstance(mae, (int, float)) and not np.isnan(mae) else "N/A"
+                        rmse_str = f"{rmse:.2f}" if isinstance(rmse, (int, float)) and not np.isnan(rmse) else "N/A"
+                        mape_str = f"{mape:.2f}%" if isinstance(mape, (int, float)) and not np.isnan(mape) else "N/A"
+                        r2_str = f"{r2:.3f}" if isinstance(r2, (int, float)) and not np.isnan(r2) else "N/A"
+                        
+                        logger.info(f"  {model_name} - MAE: {mae_str}, "
+                                  f"RMSE: {rmse_str}, "
+                                  f"MAPE: {mape_str}, "
+                                  f"R²: {r2_str}")
         
         # Intermittent demand summary
         if intermittent_drugs + highly_intermittent_drugs > 0:
@@ -227,6 +238,8 @@ def main() -> None:
                         avg_value = sum(values) / len(values)
                         if metric == 'MAPE':
                             logger.info(f"    {metric}: {avg_value:.2f}%")
+                        elif 'accuracy' in metric.lower():
+                            logger.info(f"    {metric}: {avg_value:.1%}")
                         else:
                             logger.info(f"    {metric}: {avg_value:.3f}")
         
